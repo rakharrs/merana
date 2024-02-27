@@ -205,6 +205,7 @@ public class FrontServlet extends HttpServlet {
                     return true;
                 }else{
                     resp.setContentType("application/json");
+                    resp.setCharacterEncoding("UTF-8");
                     out.println( gson.toJson(res) );
                     return true;
                 }
