@@ -2,11 +2,7 @@ package ambovombe.merana.servlet;
 
 import ambovombe.merana.Mapping;
 import ambovombe.merana.utils.ClassRetriever;
-import ambovombe.merana.utils.mapping.Url;
-import ambovombe.merana.utils.mapping.Arg;
-import ambovombe.merana.utils.mapping.Auth;
-import ambovombe.merana.utils.mapping.Scope;
-import ambovombe.merana.utils.mapping.Session;
+import ambovombe.merana.utils.mapping.*;
 import ambovombe.merana.utils.mapping.method.HttpMethod;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.MultipartConfig;
@@ -18,12 +14,15 @@ import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.Part;
 import ambovombe.merana.process.Fileupload;
 import ambovombe.merana.process.Modelview;
+
+import java.io.BufferedReader;
 import java.lang.reflect.Parameter;
 
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.net.URISyntaxException;
+import java.net.http.HttpRequest;
 import java.sql.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -49,7 +48,7 @@ public class FrontServlet extends HttpServlet {
     HashMap<String, Mapping> MappingUrls = new HashMap<>();
     HashMap<String, Object> SingletonController = new HashMap<>();
     protected Set<Class> classes;
-
+    Gson gson = new Gson();
     String session_name;
     String session_profile;
 
@@ -111,11 +110,17 @@ public class FrontServlet extends HttpServlet {
 
     protected void retrieveMappingUrls(){
         for (Class classe : classes){
+            RequestUrl requestUrl = null;
+            String urlValue = "";
+            if(classe.isAnnotationPresent(RequestUrl.class)){
+                requestUrl = (RequestUrl) classe.getAnnotation(RequestUrl.class);
+                urlValue += requestUrl.value();
+            }
             Method[] methods = classe.getMethods();
             for (Method method : methods)
                 if(method.isAnnotationPresent(Url.class)) {
                     Url url = method.getAnnotation(Url.class);
-                    this.MappingUrls.put(url.value(), new Mapping(classe.getName(), method.getName(), url.method()));
+                    this.MappingUrls.put(url.method() + " " + urlValue + url.value(), new Mapping(classe.getName(), method.getName(), url.method()));
                 }
         }
     }
@@ -150,8 +155,11 @@ public class FrontServlet extends HttpServlet {
 
     public boolean dispatch_modelview(HttpServletRequest req, HttpServletResponse resp, HttpMethod httpMethod) throws IOException{
         String key = Misc.getMappingValue(req);
-        Mapping map = getMappingUrls().get(key);
+        Mapping map = getMappingUrls().get(httpMethod + " " + key);
         Object res = null;
+        if(map ==  null){
+            return false;
+        }
 
         try {
             if(map.getHttpMethod() != httpMethod){
@@ -201,6 +209,7 @@ public class FrontServlet extends HttpServlet {
                     return true;
                 }
             } catch (Exception e) {
+                resp.setStatus(500);
                 out.println("- MODELVIEW NULL -");
                 e.printStackTrace(out);
                 out.close();
@@ -262,15 +271,50 @@ public class FrontServlet extends HttpServlet {
         if(params.length > 0){
             Class<?>[] method_parameter_class = arrayMethodParameter(method);                                   // method of the parameter
             String[][] args = new String[params.length][];
+            System.out.println("arg"+new Gson().toJson(parameters));
+            //System.out.println("arg"+new Gson().toJson(params));
             for(int i = 0; i < params.length; i++){
-                String[] param = parameters.get(params[i].getName());
-                args[i] = param;
+                if(params[i].isAnnotationPresent(RequestBody.class)){
+                    RequestBody requestBody = params[i].getAnnotation(RequestBody.class);
+                    String[] val = new String[1];
+                    val[0] = retrieveRequestBody(req);
+                    args[i] = val;
+                }
+                else if(params[i].isAnnotationPresent(Param.class)){
+                    Param paramValue = params[i].getAnnotation(Param.class);
+                    System.out.println("paramName "+params[i].getName());
+                    String[] param = parameters.get(paramValue.value());
+                    System.out.println("param "  +new Gson().toJson(param));
+                    args[i] = param;
+                }
             }
             modelview = method.invoke(objet, dynamicCast(method_parameter_class, args));            // If there are parameters to the function
-        }else modelview = method.invoke(objet); 
+        }else modelview = method.invoke(objet);
                                                             // if there are no parameter
         if(modelview == null) throw new Exception("The given Modelview is just null");
         return modelview;
+    }
+
+    public <T> T retrieveRequestBody(HttpServletRequest req, Class<T> objectClass) throws IOException{
+        BufferedReader reader = req.getReader();
+        StringBuilder jsonData = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null) {
+            jsonData.append(line);
+        }
+        //System.out.println("retrieved : "+gson.fromJson(jsonData.toString(), objectClass));
+        // Process the JSON data using Gson
+        // Now, you can work with the deserialized Java object
+        return gson.fromJson(jsonData.toString(), objectClass);
+    }
+
+    public String retrieveRequestBody(HttpServletRequest req) throws IOException{
+        BufferedReader reader = req.getReader();
+        StringBuilder jsonData = new StringBuilder();
+        String line;
+        while ((line = reader.readLine()) != null)
+            jsonData.append(line);
+        return jsonData.toString();
     }
 
     /**
@@ -282,8 +326,17 @@ public class FrontServlet extends HttpServlet {
     private Object [] dynamicCast(Class<?>[]classes, String[][]args) throws Exception{
        Object[] array = new Object[classes.length];
        int i = 0;
+        System.out.println(new Gson().toJson(args));
        for (Class<?> cl:classes) {
-            if(!cl.isArray())
+           System.out.println("isArray : "+cl.isArray());
+           if(!cl.isArray()) {
+               System.out.println("please "+args[i][0]);
+               array[i] = gson.fromJson(args[i][0], cl);
+           }
+           else
+               array[i] = gson.fromJson(gson.toJson(args[i]),cl);
+
+            /*if(!cl.isArray())
                 array[i] = cl.getDeclaredConstructor(String.class).newInstance(args[i][0]);
             else{
                 Vector<Object> temps = new Vector<>();
@@ -295,7 +348,7 @@ public class FrontServlet extends HttpServlet {
                                                                                                         // We specify the length of objectArray as the second argument to create a new array with the desired component type and length.
                 System.arraycopy(temps_arr, 0, newArray, 0, temps_arr.length);                          // Finally, we use System.arraycopy() to copy the elements from objectArray to the new array.
                 array[i] = newArray;
-            }   i++;
+            }   i++;*/
        }
        return array;
    }
@@ -394,7 +447,7 @@ public class FrontServlet extends HttpServlet {
         out.println("<p>"+Misc.getMappingValue(req)+"</p>");
         for (String k: getMappingUrls().keySet()) {
             out.print("key : " + k);
-            out.println(" value : " + getMappingUrls().get(k).getClassName());
+            out.println(" value : " + getMappingUrls().get(k).getClassName() + "<br>");
         }
 
         for(String k : getSingletonController().keySet()){

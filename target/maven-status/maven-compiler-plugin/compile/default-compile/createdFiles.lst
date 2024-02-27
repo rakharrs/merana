@@ -1,5 +1,7 @@
 ambovombe/merana/servlet/FrontServlet.class
 ambovombe/merana/Mapping.class
+ambovombe/merana/utils/mapping/Param.class
+ambovombe/merana/utils/mapping/RequestBody.class
 ambovombe/merana/utils/mapping/Session.class
 ambovombe/merana/utils/mapping/Auth.class
 ambovombe/merana/servlet/AssetFilter.class
@@ -7,6 +9,7 @@ ambovombe/merana/App.class
 ambovombe/merana/utils/mapping/Scope.class
 ambovombe/merana/utils/mapping/Url.class
 ambovombe/merana/utils/mapping/Arg.class
+ambovombe/merana/utils/mapping/RequestUrl.class
 ambovombe/merana/utils/mapping/method/HttpMethod.class
 ambovombe/merana/utils/Misc.class
 ambovombe/merana/process/Modelview.class
