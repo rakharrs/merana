@@ -1,4 +1,3 @@
-ambovombe/merana/servlet/FrontServlet.class
 ambovombe/merana/Mapping.class
 ambovombe/merana/utils/mapping/Param.class
 ambovombe/merana/utils/mapping/RequestBody.class
@@ -13,5 +12,6 @@ ambovombe/merana/utils/mapping/RequestUrl.class
 ambovombe/merana/utils/mapping/method/HttpMethod.class
 ambovombe/merana/utils/Misc.class
 ambovombe/merana/process/Modelview.class
+ambovombe/merana/servlet/MeranaServlet.class
 ambovombe/merana/process/Fileupload.class
 ambovombe/merana/utils/ClassRetriever.class

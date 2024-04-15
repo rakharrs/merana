@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.lang.reflect.Method;
 import java.net.URISyntaxException;
-import java.net.http.HttpRequest;
 import java.sql.Date;
 import java.util.HashMap;
 import java.util.List;
@@ -33,18 +32,15 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Set;
-import java.util.Vector;
 
 import javax.security.sasl.AuthenticationException;
 
 import com.google.gson.Gson;
 
-import java.lang.reflect.Array;
-
 import ambovombe.merana.utils.*;
 
 @MultipartConfig
-public class FrontServlet extends HttpServlet {
+public class MeranaServlet extends HttpServlet {
     HashMap<String, Mapping> MappingUrls = new HashMap<>();
     HashMap<String, Object> SingletonController = new HashMap<>();
     protected Set<Class> classes;
@@ -66,6 +62,7 @@ public class FrontServlet extends HttpServlet {
                             "controller"));
             retrieveMappingUrls();
             retrieveSingleton();
+            
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -127,9 +124,8 @@ public class FrontServlet extends HttpServlet {
 
     protected void retrieveSingleton(){
         for(Class classe : classes){
-            if(is_singleton(classe)){
+            if(is_singleton(classe))
                 getSingletonController().put(classe.getName(), null);
-            }
             System.out.println("classe : "+classe.getName());
             System.out.println(is_singleton(classe));
         }
@@ -243,8 +239,6 @@ public class FrontServlet extends HttpServlet {
 
     public Object invoke_requested_method(HttpServletRequest req, Map<String, String[]> parameters, Object objet, String method_name) throws Exception{
         Object modelview = null;
-        System.out.println("invokde meth " + method_name);
-        // Method method = objet.getClass().getDeclaredMethod(method_name);
         Method method = getMathingMethod(objet.getClass().getDeclaredMethods(), method_name);
 
         // Checking authentification
@@ -268,13 +262,13 @@ public class FrontServlet extends HttpServlet {
         }
         
         // getting the method matching with the url
-        Parameter[] params = method.getParameters();                                                            // parameters of the method
+        Parameter[] params = method.getParameters();
+        System.out.println("LENGH " + params.length);// parameters of the method
         if(params.length > 0){
             Class<?>[] method_parameter_class = arrayMethodParameter(method);                                   // method of the parameter
             String[][] args = new String[params.length][];
-            System.out.println("arg"+new Gson().toJson(parameters));
-            //System.out.println("arg"+new Gson().toJson(params));
             for(int i = 0; i < params.length; i++){
+
                 if(params[i].isAnnotationPresent(RequestBody.class)){
                     RequestBody requestBody = params[i].getAnnotation(RequestBody.class);
                     String[] val = new String[1];
@@ -282,13 +276,15 @@ public class FrontServlet extends HttpServlet {
                     args[i] = val;
                 }
                 else if(params[i].isAnnotationPresent(Param.class)){
+
                     Param paramValue = params[i].getAnnotation(Param.class);
-                    System.out.println("paramName "+params[i].getName());
+                    System.out.println("aaa "+ paramValue.value());
                     String[] param = parameters.get(paramValue.value());
-                    System.out.println("param "  +new Gson().toJson(param));
                     args[i] = param;
                 }
             }
+            System.out.println(gson.toJson(args));
+            System.out.println(method_parameter_class.length);
             modelview = method.invoke(objet, dynamicCast(method_parameter_class, args));            // If there are parameters to the function
         }else modelview = method.invoke(objet);
                                                             // if there are no parameter
@@ -303,7 +299,6 @@ public class FrontServlet extends HttpServlet {
         while ((line = reader.readLine()) != null) {
             jsonData.append(line);
         }
-        //System.out.println("retrieved : "+gson.fromJson(jsonData.toString(), objectClass));
         // Process the JSON data using Gson
         // Now, you can work with the deserialized Java object
         return gson.fromJson(jsonData.toString(), objectClass);
@@ -324,33 +319,17 @@ public class FrontServlet extends HttpServlet {
      * @param args
      * @return Object array
      */
-    private Object [] dynamicCast(Class<?>[]classes, String[][]args) throws Exception{
-       Object[] array = new Object[classes.length];
-       int i = 0;
-        System.out.println(new Gson().toJson(args));
-       for (Class<?> cl:classes) {
-           System.out.println("isArray : "+cl.isArray());
-           if(!cl.isArray()) {
-               System.out.println("please "+args[i][0]);
-               array[i] = gson.fromJson(args[i][0], cl);
-           }
-           else
-               array[i] = gson.fromJson(gson.toJson(args[i]),cl);
+    private Object [] dynamicCast(Class<?>[] classes, String[][] args) throws Exception{
 
-            /*if(!cl.isArray())
-                array[i] = cl.getDeclaredConstructor(String.class).newInstance(args[i][0]);
-            else{
-                Vector<Object> temps = new Vector<>();
-                Class<?> componentType = cl.getComponentType();
-                for (String arg : args[i])                                                              // we cast all of the argument to the component type exemple int, string etc...
-                    temps.add(componentType.getDeclaredConstructor(String.class).newInstance(arg));
-                Object[] temps_arr = temps.toArray();
-                Object[] newArray = (Object[]) Array.newInstance(componentType, temps_arr.length);      // To cast objectArray to an array of cl, we use Array.newInstance() and pass componentType to get the component type of cl as the first argument. 
-                                                                                                        // We specify the length of objectArray as the second argument to create a new array with the desired component type and length.
-                System.arraycopy(temps_arr, 0, newArray, 0, temps_arr.length);                          // Finally, we use System.arraycopy() to copy the elements from objectArray to the new array.
-                array[i] = newArray;
-            }   i++;*/
+       Object[] array = new Object[classes.length];
+       for (int i = 0; i < classes.length; i++){
+           System.out.println("class : "+classes[i].getName());
+           System.out.println("value : " + args[i][0]);
+           if(!classes[i].isArray())
+               array[i] = gson.fromJson(args[i][0], classes[i]);
+           else array[i] = gson.fromJson(gson.toJson(args[i]),classes[i]);
        }
+
        return array;
    }
 
@@ -374,7 +353,6 @@ public class FrontServlet extends HttpServlet {
                     }
                 }else method.invoke(objet, dynamicCast(method_parameter_class, parameter));
             }else{
-                //Class<?>[] method_parameter_class = arrayMethodParameter(method);
                 if(method_parameter_class[0] == Fileupload.class){
                     if(parts != null && parts.size() > 0){
                         Part part = Misc.getPart(field_name, parts);
@@ -408,7 +386,7 @@ public class FrontServlet extends HttpServlet {
     /**
      * Return the class of the method's argument
      * @param method
-     * @return
+     * @return classes of method parameter(s)
      */
     private Class<?>[] arrayMethodParameter(Method method) {
         // Get the parameters of the method
@@ -433,17 +411,18 @@ public class FrontServlet extends HttpServlet {
 
     public void print_test(HttpServletRequest req, HttpServletResponse resp) throws IOException{
         resp.setContentType("text/html");
+        resp.setStatus(404);
         HttpServletMapping mapping = req.getHttpServletMapping();
 
         // Hello
         PrintWriter out = resp.getWriter();
         out.println("<html><body>");
-
-        out.println("<h1> URI : " + req.getRequestURI() + "</h1>");
-        out.println("<h1>" + req.getQueryString() + "</h1>");
-        out.println("<h1> URL : " + req.getRequestURL() + "</h1>");
-        out.println("<h1>" + mapping.getPattern() + "</h1>");
-        out.println("<h1>" + mapping.getMatchValue() + "</h1>");
+        out.println("<h1> ERROR 404 </h1>");
+        out.println("<h2> URI : " + req.getRequestURI() + "</h2>");
+        out.println("<h2> Query : " + req.getQueryString() + "</h2>");
+        out.println("<h2> URL : " + req.getRequestURL() + "</h2>");
+        out.println("<h2>" + mapping.getPattern() + "</h2>");
+        out.println("<h2>" + mapping.getMatchValue() + "</h2>");
         out.println("<p>"+req.getContextPath()+"</p>");
         out.println("<p>"+Misc.getMappingValue(req)+"</p>");
         for (String k: getMappingUrls().keySet()) {
