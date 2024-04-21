@@ -182,32 +182,50 @@ public class MeranaServlet extends HttpServlet {
 
             // M'invoke an'ilay conntroller
             try {
-                
-                res = invoke_requested_method(req, requestParameter, objet, map.getMethod());
-                Gson gson = new Gson();
-                if(res instanceof Modelview){
-                    Modelview modelview = (Modelview) res;
-                    if(modelview.isJson()){
-                        resp.setContentType("application/json");
-                        out.println( gson.toJson(modelview.getData()));
+                try {
+                    res = invoke_requested_method(req, requestParameter, objet, map.getMethod());
+                    Gson gson = new Gson();
+                    if(res instanceof Modelview){
+                        Modelview modelview = (Modelview) res;
+                        if(modelview.isJson()){
+                            resp.setContentType("application/json");
+                            out.println( gson.toJson(modelview.getData()));
+                        }else{
+                            for (String k: modelview.getData().keySet())
+                                req.setAttribute(k, modelview.getData().get(k));
+                            HashMap<String, Object> sessions = modelview.getSessions();
+                            this.setSessions(req, sessions);
+                            this.handleSession(modelview, req);
+                            try {
+                                req.getRequestDispatcher(modelview.getView()).forward(req, resp);
+                            }catch (Exception e){
+                                resp.setStatus(200);
+                                resp.setContentType("application/json");
+                                resp.setCharacterEncoding("UTF-8");
+                                out.println("- ok -");
+                                //e.printStackTrace(out);
+                                out.close();
+                            }
+
+                        }
+                        return true;
                     }else{
-                        for (String k: modelview.getData().keySet())
-                            req.setAttribute(k, modelview.getData().get(k));
-                        HashMap<String, Object> sessions = modelview.getSessions();
-                        this.setSessions(req, sessions);
-                        this.handleSession(modelview, req);
-                        req.getRequestDispatcher(modelview.getView()).forward(req, resp);
+                        resp.setContentType("application/json");
+                        resp.setCharacterEncoding("UTF-8");
+                        out.println( gson.toJson(res) );
+                        return true;
                     }
-                    return true;
-                }else{
+
+                }catch (AuthenticationException e){
+                    resp.setStatus(500);
                     resp.setContentType("application/json");
-                    resp.setCharacterEncoding("UTF-8");
-                    out.println( gson.toJson(res) );
-                    return true;
+                    out.println(e.getMessage());
+                    out.close();
                 }
             } catch (Exception e) {
                 resp.setStatus(500);
-                out.println("- MODELVIEW NULL -");
+                resp.setContentType("application/json");
+                out.println(e.getMessage());
                 e.printStackTrace(out);
                 out.close();
             }
