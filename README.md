@@ -5,20 +5,74 @@ A lightweight WEB Framework for java
 the classes have to be in the same package wich is define in *web.xml* as package_src init-parameter
 ```Xml
     <servlet>
-        <servlet-name>frontservlet</servlet-name>
-        <servlet-class>etu1999.framework.servlet.FrontServlet</servlet-class>
+        <servlet-name>merana</servlet-name>
+        <servlet-class>ambovombe.merana.servlet.MeranaServlet</servlet-class>
         <init-param>
             <param-name> package_src </param-name>
-            <param-value>controller</param-value>
+            <param-value>com.example.demo.model</param-value>
         </init-param>
     </servlet>
     <servlet-mapping>
-        <servlet-name>frontservlet</servlet-name>
+        <servlet-name>merana</servlet-name>
         <url-pattern>/</url-pattern>
-    </servlet-mapping>
+    </servlet-mapping>  
 ```
 
 ## Instructions
+- If you want to control Cors access policy you should add the following code to your project and define it in the web.xml file as following
+```Java
+import jakarta.servlet.*;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+
+public class CorsFilter implements Filter {
+    @Override
+    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+        HttpServletResponse httpResponse = (HttpServletResponse) response;
+
+        // Allow requests from any origin. You can restrict this to specific origins.
+        httpResponse.setHeader("Access-Control-Allow-Origin", "http://localhost:3000");
+
+        // Allow the following HTTP methods.
+        httpResponse.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+
+        // Allow the following headers.
+        httpResponse.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization");
+
+        // Allow credentials (e.g., cookies).
+        httpResponse.setHeader("Access-Control-Allow-Credentials", "true");
+
+        chain.doFilter(request, response);
+    }
+
+    @Override
+    public void init(FilterConfig filterConfig) throws ServletException {
+        // Initialization code if needed.
+    }
+
+    @Override
+    public void destroy() {
+        // Cleanup code if needed.
+    }
+}
+
+
+
+```
+
+- And add it in the web xml file as follow
+```Xml
+    <filter>
+        <filter-name>CorsFilter</filter-name>
+        <filter-class>com.example.demo.cors.CorsFilter</filter-class> <!-- Update with the correct package and class name -->
+    </filter>
+    <filter-mapping>
+        <filter-name>CorsFilter</filter-name>
+        <url-pattern>/*</url-pattern> <!-- This allows the filter to intercept all requests -->
+    </filter-mapping>
+```
+
 - the Url will be defined with the annotation @RequestUrl or the class or @Url for the method
 - the @Url annotation will have a type method to define the method of the http request
     - Example
